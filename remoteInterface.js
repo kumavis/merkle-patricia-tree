@@ -19,9 +19,10 @@ function RemoteInterface (trie) {
   trie._putDBs = []
   
   var rpc = trie._rpc = RPC()
-  rpc.on('data', function (data) {
-    console.log('remote rpc: '+data.toString())
-  })
+
+  // rpc.on('data', function(data){
+  //   console.log('remote:', data)
+  // })
 
   trie._remote = rpc.wrap([
     'get',
@@ -62,7 +63,6 @@ function createNetworkStream(){
   // var dup = through2()
   // dup.pipe(rpc).pipe(dup)
   // dup.on('data', function(){
-  //   console.log('remote: '+data.toString())
   // })
   return rpc
 }
@@ -72,18 +72,28 @@ function get(_super, key, cb){
   this.sem.take(function(){
     this.sem.leave()
     var remote = this._remote
-    remote.get(key, cb)
+    key = encode(key)
+    remote.get(key, function(err, value){
+      if (err) return cb(err)
+      value = value && new Buffer(value, 'binary')
+      cb(null, value)
+    })
   }.bind(this))
 }
 
-// puts from remote db
+// puts to remote db
 function put(_super, key, value, cb){
+  if (!value) return this.del(key, cb)
   this.sem.take(function(){
     this.sem.leave()
     var remote = this._remote
-    console.log('PUT:', key.toString())
+    // encode key and value
+    key = encode(key)
+    value = encode(value)
     remote.put(key, value, function(err, root){
-      this.root = root
+      if (err) return cb(err)
+      this.root = decode(root)
+      cb()
     }.bind(this))
   }.bind(this))
 }
@@ -92,15 +102,22 @@ function del(_super, key, cb){
   this.sem.take(function(){
     this.sem.leave()
     var remote = this._remote
-    remote.del(key, cb)
+    key = encode(key)
+    remote.del(key, function(err, root){
+      if (err) return cb(err)
+      this.root = decode(root)
+      cb()
+    }.bind(this))
   }.bind(this))
 }
 
 function batch(_super, ops, cb){
+  // serialize ops
+  ops = encodeOps(ops)
   this.sem.take(function(){
     this.sem.leave()
     var remote = this._remote
-    remote.batch(key, cb)
+    remote.batch(ops, cb)
   }.bind(this))
 }
 
@@ -163,3 +180,24 @@ function superify(trie, key, fn){
 }
 
 function noop(){}
+
+function encode(value){
+  if (value && !Buffer.isBuffer(value)) {
+    value = (new Buffer(value, 'utf8'))
+  }
+  return value && value.toString('binary')
+}
+
+function decode(value){
+  return value && new Buffer(value, 'binary')
+}
+
+function encodeOps(ops) {
+  return ops.map(function(op){
+    return {
+      type: op.type,
+      key: encode(op.key),
+      value: encode(op.value),
+    }
+  })
+}
