@@ -22,12 +22,17 @@ function RemoteInterface (trie) {
   rpc.on('data', function (data) {
     console.log('remote rpc: '+data.toString())
   })
-  trie.sem.take(noop)
-  rpc.on('remote', function (remote) {
-    trie.sem.leave()
-    console.log('CONNECTED!:', Object.keys(remote))
-    trie._remote = remote
-  })
+
+  trie._remote = rpc.wrap([
+    'get',
+    'put',
+    'del',
+    'batch',
+    'checkpoint',
+    'commit',
+    'revert',
+    'createReadStream:s',
+  ])
 
   Object.defineProperty(trie, 'isConnected', {
     get: function(){

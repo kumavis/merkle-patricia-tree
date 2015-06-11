@@ -26,13 +26,8 @@ function HostInterface (trie) {
     createReadStream: trie.createReadStream.bind(trie),
   })
 
-  trie.sem.take(noop)
   rpc.on('data', function (data) {
     console.log('host rpc: '+data.toString())
-  })
-  rpc.on('remote', function (remote) {
-    trie.sem.leave()
-    trie._remote = remote
   })
 
   Object.defineProperty(trie, 'isConnected', {
