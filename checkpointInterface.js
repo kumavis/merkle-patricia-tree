@@ -7,10 +7,10 @@ const levelup = require('levelup'),
   TrieNode = require('./trieNode'),
   TrieReadStream = require('./readStream');
 
-module.exports = checkpointInterface
+module.exports = CheckpointInterface
 
 
-function checkpointInterface (trie) {
+function CheckpointInterface (trie) {
 
   this._scratch = null;
   trie._checkpoints = []
@@ -113,7 +113,7 @@ function _exitCpMode(commitState, cb) {
 // adds the interface when copying the trie
 function copy(_super) {
   var trie = _super();
-  checkpointInterface(trie);
+  CheckpointInterface(trie);
   trie._scratch = this._scratch;
   trie._checkpoints = this._checkpoints.slice();
   return trie;
